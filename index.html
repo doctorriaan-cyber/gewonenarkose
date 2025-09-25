@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Narkose Data</title>
+    <meta name="description" content="An application to import, view, edit, and export patient data from an XLSX file, designed for mobile use." />
+    <link rel="manifest" href="data:application/manifest+json;base64,eyJuYW1lIjoiTmFya29zZSBEYXRhIiwic2hvcnRfbmFtZSI6Ik5hcmtzZSIsInN0YXJ0X3VybCI6Ii4iLCJkaXNwbGF5Ijoic3RhbmRhbG9uZSIsImJhY2tncm91bmRfY29sb3IiOiIjMjEyOTQyIiwidGhlbWVfY29sb3IiOiIjMjEyOTQyIiwiZGVzY3JpcHRpb24iOiJBbiBhcHBsaWNhdGlvbiB0byBpbXBvcnQsIHZpZXcsIGVkaXQsIGFuZCBleHBvcnQgcGF0aWVudCBkYXRhLiIsImljb25zIjpbeyJzcmMiOiJjcm9wcGVkLnBuZyIsInNpemVzIjoiMTkyeDE5MiIsInR5cGUiOiJpbWFnZS9wbmciLCJwdXJwb3NlIjoiYW55IG1hc2thYmxlIn1dfQ==" />
+    <meta name="theme-color" content="#212942" />
+    <link rel="apple-touch-icon" href="cropped.png" />
+    
+    <!-- CDNs -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-[#212942]">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        // --- From components/icons.tsx ---
+        const ImportIcon = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 3a1 1 0 011 1v10.586l3.293-3.293a1 1 0 111.414 1.414l-5 5a1 1 0 01-1.414 0l-5-5a1 1 0 111.414-1.414L9 14.586V4a1 1 0 011-1z" clipRule="evenodd" />
+            </svg>
+        );
+
+        const ExportIcon = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 17a1 1 0 01-1-1V5.414l-3.293 3.293a1 1 0 11-1.414-1.414l5-5a1 1 0 011.414 0l5 5a1 1 0 11-1.414 1.414L11 5.414V16a1 1 0 01-1 1z" clipRule="evenodd" />
+            </svg>
+        );
+
+        const InstallIcon = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+              <path d="M10.75 2.75a.75.75 0 0 0-1.5 0v8.614L6.295 8.235a.75.75 0 1 0-1.09 1.03l4.25 4.5a.75.75 0 0 0 1.09 0l4.25-4.5a.75.75 0 0 0-1.09-1.03l-2.955 3.129V2.75Z" />
+              <path d="M3.5 12.75a.75.75 0 0 0-1.5 0v2.5A2.75 2.75 0 0 0 4.75 18h10.5A2.75 2.75 0 0 0 18 15.25v-2.5a.75.75 0 0 0-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5Z" />
+            </svg>
+        );
+
+        const ChevronDownIcon = ({ isOpen }) => (
+            <svg xmlns="http://www.w3.org/2000/svg" className={`h-6 w-6 transform transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+        );
+
+        const CloseIcon = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+        );
+
+        const TrashIcon = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" />
+            </svg>
+        );
+
+        const WarningIcon = () => (
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12 text-amber-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+        );
+        
+        // --- From services/xlsxService.ts ---
+        const getCellValue = (worksheet, address) => {
+          const cell = worksheet[address];
+          if (!cell) return '';
+
+          if (cell.t === 'd' && cell.v instanceof Date) {
+            const date = cell.v;
+            if (!isNaN(date.getTime())) {
+              const hours = String(date.getUTCHours()).padStart(2, '0');
+              const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+              return `${hours}:${minutes}`;
+            }
+          }
+
+          if (cell.w) {
+            return cell.w;
+          }
+          
+          return cell.v !== null && cell.v !== undefined ? String(cell.v) : '';
+        };
+
+        const parsePatientData = async (file) => {
+          const data = await file.arrayBuffer();
+          const workbook = XLSX.read(data, { cellDates: true });
+          const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+
+          const p1RawValue = getCellValue(worksheet, 'P1') || '';
+          const p1FirstWord = p1RawValue.split(' ')[0].trim();
+
+          const p2RawValue = getCellValue(worksheet, 'P2') || '';
+          const p2DrName = p2RawValue.split(',')[0].trim();
+          
+          const sectionHeader = [p2DrName, p1FirstWord].filter(Boolean).join(', ');
+          
+          const patients = [];
+          const range = XLSX.utils.decode_range(worksheet['!ref']);
+          
+          for (let R = 1; R <= range.e.r; ++R) {
+            const rowNum = R + 1;
+            const name = getCellValue(worksheet, `A${rowNum}`);
+            
+            if (!name) continue;
+
+            const patient = {
+              id: `p-${file.name.replace(/\W/g, '_')}-${R}`,
+              originalRow: rowNum,
+              
+              name: name,
+              age: getCellValue(worksheet, `B${rowNum}`),
+              gender: getCellValue(worksheet, `C${rowNum}`),
+              procedure: getCellValue(worksheet, `D${rowNum}`),
+              procedureCodes: getCellValue(worksheet, `E${rowNum}`),
+              authNumber: getCellValue(worksheet, `F${rowNum}`),
+              medicalAid: getCellValue(worksheet, `G${rowNum}`),
+              icd10Codes: getCellValue(worksheet, `H${rowNum}`),
+              weight: getCellValue(worksheet, `I${rowNum}`),
+              height: getCellValue(worksheet, `J${rowNum}`),
+              inTime: getCellValue(worksheet, `K${rowNum}`),
+              outTime: getCellValue(worksheet, `L${rowNum}`),
+              extra: getCellValue(worksheet, `M${rowNum}`) || 'None',
+              billOnly100: getCellValue(worksheet, `N${rowNum}`) || 'No',
+
+              // New fields for in-app use only
+              caution: false,
+              penicillinAllergy: false,
+              notes: '',
+            };
+            
+            patients.push(patient);
+          }
+          
+          return { sectionHeader, patients };
+        };
+
+        const exportPatientData = (section, fileName = 'pain_data_export.xlsx') => {
+            const { patients } = section;
+            const wb = XLSX.utils.book_new();
+            const ws = {};
+
+            const addCell = (address, value) => {
+                if (value === null || value === undefined) return;
+
+                const s_value = String(value);
+                const cell = { t: 's', v: s_value };
+
+                if (/^-?\d*\.?\d+$/.test(s_value)) {
+                    cell.z = '@'; 
+                }
+                ws[address] = cell;
+            };
+            
+            patients.forEach(patient => {
+                const r = patient.originalRow;
+                
+                addCell(`A${r}`, patient.name);
+                addCell(`B${r}`, patient.age);
+                addCell(`C${r}`, patient.gender);
+                addCell(`D${r}`, patient.procedure);
+                addCell(`E${r}`, patient.procedureCodes);
+                addCell(`F${r}`, patient.authNumber);
+                addCell(`G${r}`, patient.medicalAid);
+                addCell(`H${r}`, patient.icd10Codes);
+                addCell(`I${r}`, patient.weight);
+                addCell(`J${r}`, patient.height);
+                addCell(`K${r}`, patient.inTime);
+                addCell(`L${r}`, patient.outTime);
+                addCell(`M${r}`, patient.extra);
+                addCell(`N${r}`, patient.billOnly100);
+            });
+
+            if (Object.keys(ws).length > 0) {
+                const range = { s: { c: 10000, r: 10000 }, e: { c: 0, r: 0 } };
+                Object.keys(ws).forEach(address => {
+                    if (address === '!ref') return;
+                    const cellRef = XLSX.utils.decode_cell(address);
+                    range.s.c = Math.min(range.s.c, cellRef.c);
+                    range.s.r = Math.min(range.s.r, cellRef.r);
+                    range.e.c = Math.max(range.e.c, cellRef.c);
+                    range.e.r = Math.max(range.e.r, cellRef.r);
+                });
+                ws['!ref'] = XLSX.utils.encode_range(range);
+            } else {
+                ws['!ref'] = 'A1';
+            }
+            
+            XLSX.utils.book_append_sheet(wb, ws, "Patient Data");
+    
+            const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+            const blob = new Blob([wbout], { type: 'application/octet-stream' });
+
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', fileName);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        };
+
+        // --- From components/ConfirmModal.tsx ---
+        const ConfirmModal = ({ title, message, onConfirm, onClose, sections, selections, onSelectionChange }) => {
+            const hasSelections = sections && selections && onSelectionChange;
+            
+            const handleCheckboxChange = (index) => {
+                onSelectionChange({
+                    ...selections,
+                    [index]: !selections[index],
+                });
+            };
+
+            const numSelected = hasSelections ? Object.values(selections).filter(Boolean).length : 0;
+            const isConfirmDisabled = hasSelections && numSelected === 0;
+
+            return (
+                <div 
+                    className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50"
+                    aria-modal="true"
+                    role="dialog"
+                    onClick={onClose}
+                >
+                    <div 
+                        className="bg-[#2A3454] rounded-lg shadow-2xl w-full max-w-sm border border-[#4A5580] text-left"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="p-6">
+                            <div className="text-center">
+                                <WarningIcon />
+                                <h2 className="text-xl font-bold text-red-400 mb-2">{title}</h2>
+                            </div>
+                            {hasSelections ? (
+                                <div className="mt-4 space-y-3 max-h-60 overflow-y-auto">
+                                    <p className="text-[#94A3B8] mb-3">Select the sections you want to delete. Patient numbering will be recalculated.</p>
+                                    {sections.map((section, index) => (
+                                        <label key={`${section.sectionHeader}-${index}`} className="flex items-center p-3 bg-[#333E63] rounded-md cursor-pointer hover:bg-[#3B466F]">
+                                            <input 
+                                                type="checkbox"
+                                                checked={!!selections[index]}
+                                                onChange={() => handleCheckboxChange(index)}
+                                                className="h-5 w-5 rounded bg-[#212942] border-[#4A5580] text-sky-500 focus:ring-sky-500 focus:ring-offset-[#2A3454]"
+                                            />
+                                            <span className="ml-3 text-[#E2E8F0] truncate" title={section.sectionHeader}>{section.sectionHeader}</span>
+                                        </label>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-[#94A3B8] text-center">{message}</p>
+                            )}
+                        </div>
+                        <div className="p-4 bg-black/20 flex justify-center space-x-4 rounded-b-lg">
+                             <button
+                                onClick={onClose}
+                                className="px-6 py-2 bg-slate-500 hover:bg-slate-600 text-white font-semibold rounded-lg w-full"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={onConfirm}
+                                disabled={isConfirmDisabled}
+                                className="px-6 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg w-full disabled:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70"
+                            >
+                                Confirm
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- From components/ExportModal.tsx ---
+        const ExportModal = ({ sections, onSelect, onClose }) => {
+            return (
+                <div 
+                    className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-50"
+                    aria-modal="true"
+                    role="dialog"
+                    onClick={onClose}
+                >
+                    <div 
+                        className="bg-[#2A3454] rounded-lg shadow-2xl w-full max-w-sm border border-[#4A5580]"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="flex justify-between items-center p-4 border-b border-[#4A5580]">
+                            <h2 className="text-xl font-bold text-[#E2E8F0]">Select Section to Export</h2>
+                            <button onClick={onClose} className="text-[#94A3B8] hover:text-[#E2E8F0]">
+                                <CloseIcon />
+                            </button>
+                        </div>
+                        <div className="p-4 max-h-80 overflow-y-auto">
+                            <p className="text-[#94A3B8] mb-4">Choose which imported file you would like to export.</p>
+                            <div className="space-y-3">
+                                {sections.map((section, index) => (
+                                    <button
+                                        key={`${section.sectionHeader}-${index}`}
+                                        onClick={() => onSelect(section)}
+                                        className="w-full text-left px-4 py-3 bg-[#333E63] hover:bg-[#3B466F] text-[#E2E8F0] rounded-md transition-colors duration-200"
+                                    >
+                                        {section.sectionHeader}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                        <div className="p-4 border-t border-[#4A5580] text-right">
+                             <button
+                                onClick={onClose}
+                                className="px-4 py-2 bg-slate-500 hover:bg-slate-600 text-white font-semibold rounded-lg"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- From components/CustomSelect.tsx ---
+        const CustomSelect = ({ label, options, value, onChange, id }) => {
+            const [isOpen, setIsOpen] = React.useState(false);
+            const selectRef = React.useRef(null);
+
+            const handleSelect = (option) => {
+                onChange(option);
+                setIsOpen(false);
+            };
+
+            React.useEffect(() => {
+                const handleClickOutside = (event) => {
+                    if (selectRef.current && !selectRef.current.contains(event.target)) {
+                        setIsOpen(false);
+                    }
+                };
+                document.addEventListener("mousedown", handleClickOutside);
+                return () => {
+                    document.removeEventListener("mousedown", handleClickOutside);
+                };
+            }, []);
+            
+            const DropdownArrowIcon = ({ isOpen }) => (
+                <svg className={`h-5 w-5 text-[#94A3B8] transform transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+            );
+
+            return (
+                <div className="relative" ref={selectRef}>
+                    <label htmlFor={id} className="block text-sm font-medium text-[#94A3B8] mb-1">{label}</label>
+                    <button
+                        type="button"
+                        id={id}
+                        onClick={() => setIsOpen(!isOpen)}
+                        className="w-full bg-[#333E63] border border-[#4A5580] rounded-md px-3 py-2 text-[#E2E8F0] focus:ring-2 focus:ring-sky-500 focus:border-sky-500 flex justify-between items-center text-left"
+                        aria-haspopup="listbox"
+                        aria-expanded={isOpen}
+                    >
+                        <span>{value}</span>
+                        <DropdownArrowIcon isOpen={isOpen} />
+                    </button>
+                    {isOpen && (
+                        <div 
+                            className="absolute z-10 mt-1 w-full bg-[#2A3454] border border-[#4A5580] rounded-md shadow-lg max-h-60 overflow-auto focus:outline-none"
+                            role="listbox"
+                        >
+                            {options.map((option) => (
+                                <div
+                                    key={option}
+                                    onClick={() => handleSelect(option)}
+                                    className="cursor-pointer select-none relative py-2 pl-3 pr-9 text-[#E2E8F0] hover:bg-[#3B466F]"
+                                    role="option"
+                                    aria-selected={value === option}
+                                >
+                                    <span className={`block truncate ${value === option ? 'font-semibold' : 'font-normal'}`}>{option}</span>
+                                    {value === option ? (
+                                        <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-sky-400">
+                                            <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                            </svg>
+                                        </span>
+                                    ) : null}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // --- From components/PatientAccordion.tsx ---
+        const InputField = ({ label, name, value, onChange, id }) => (
+            <div>
+                <label htmlFor={id} className="block text-sm font-medium text-[#94A3B8] mb-1">{label}</label>
+                <input
+                    type="text"
+                    id={id}
+                    name={name}
+                    value={value}
+                    onChange={onChange}
+                    className="w-full bg-[#333E63] border border-[#4A5580] rounded-md px-3 py-2 text-[#E2E8F0] focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                />
+            </div>
+        );
+        
+        const TextAreaField = ({ label, name, value, onChange, id }) => (
+            <div>
+                <label htmlFor={id} className="block text-sm font-medium text-[#94A3B8] mb-1">{label}</label>
+                <textarea
+                    id={id}
+                    name={name}
+                    value={value}
+                    onChange={onChange}
+                    rows="3"
+                    className="w-full bg-[#333E63] border border-[#4A5580] rounded-md px-3 py-2 text-[#E2E8F0] focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                />
+            </div>
+        );
+        
+        const AllergyCheckbox = ({ id, name, checked, onChange, label, showIcon = true }) => (
+            <label htmlFor={id} className={`flex items-center space-x-2 cursor-pointer p-2 rounded-md transition-colors ${checked ? 'bg-red-500/20 text-red-300' : 'text-[#94A3B8] hover:bg-white/10'}`}>
+                {showIcon && <span role="img" aria-label="pill emoji">💊</span>}
+                <input
+                    type="checkbox"
+                    id={id}
+                    name={name}
+                    checked={checked}
+                    onChange={onChange}
+                    className="sr-only"
+                />
+                <span className="font-medium text-xs">{label}</span>
+            </label>
+        );
+
+
+        // Time calculation helpers
+        const parseTime = (timeStr) => {
+            if (!timeStr || !/^\d{1,2}:\d{2}$/.test(timeStr)) {
+                return null;
+            }
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            if (hours >= 24 || minutes >= 60) {
+                return null;
+            }
+            return hours * 60 + minutes;
+        };
+
+        const formatDuration = (totalMinutes) => {
+            if (totalMinutes === null || isNaN(totalMinutes) || totalMinutes < 0) return 'N/A';
+            if (totalMinutes === 0) return '0m';
+            const hours = Math.floor(totalMinutes / 60);
+            const minutes = totalMinutes % 60;
+            let durationStr = '';
+            if (hours > 0) durationStr += `${hours}h `;
+            if (minutes > 0) durationStr += `${minutes}m`;
+            return durationStr.trim();
+        };
+
+        const PatientAccordion = ({ patient, onUpdate, patientNumber }) => {
+            const [isOpen, setIsOpen] = React.useState(false);
+            const accordionRef = React.useRef(null);
+
+            React.useEffect(() => {
+                if (isOpen) {
+                    const timer = setTimeout(() => {
+                        accordionRef.current?.scrollIntoView({
+                            behavior: 'smooth',
+                            block: 'start',
+                        });
+                    }, 500);
+                    return () => clearTimeout(timer);
+                }
+            }, [isOpen]);
+
+            const handleInputChange = (e) => {
+                const { name, value } = e.target;
+                onUpdate({ ...patient, [name]: value });
+            };
+            
+            const handleCheckboxChange = (e) => {
+                const { name, checked } = e.target;
+                onUpdate({ ...patient, [name]: checked });
+            };
+            
+            const handleSelectChange = (name, newValue) => {
+                onUpdate({ ...patient, [name]: newValue });
+            };
+
+            const isComplete = React.useMemo(() => {
+                return !!(
+                    patient.procedureCodes &&
+                    patient.icd10Codes &&
+                    patient.weight &&
+                    patient.height &&
+                    patient.inTime &&
+                    patient.outTime
+                );
+            }, [patient.procedureCodes, patient.icd10Codes, patient.weight, patient.height, patient.inTime, patient.outTime]);
+
+            const calculatedBmi = React.useMemo(() => {
+                const weightNum = parseFloat(patient.weight);
+                const heightNum = parseFloat(patient.height);
+                if (weightNum > 0 && heightNum > 0) {
+                    const heightInMeters = heightNum;
+                    const bmi = (weightNum / (heightInMeters * heightInMeters)).toFixed(1);
+                    return (bmi && !isNaN(bmi)) ? bmi : null;
+                }
+                return null;
+            }, [patient.weight, patient.height]);
+
+            const { totalTime } = React.useMemo(() => {
+                const inTimeMinutes = parseTime(patient.inTime);
+                const outTimeMinutes = parseTime(patient.outTime);
+
+                let totalDuration = null;
+                if (inTimeMinutes !== null && outTimeMinutes !== null) {
+                    let duration = outTimeMinutes - inTimeMinutes;
+                    if (duration < 0) {
+                        duration += 24 * 60;
+                    }
+                    totalDuration = formatDuration(duration);
+                }
+
+                return {
+                    totalTime: totalDuration || 'N/A',
+                };
+            }, [patient.inTime, patient.outTime]);
+            
+            const headerRow2Items = [];
+            if (patient.age) headerRow2Items.push(<span key="age">Age: <strong className="font-bold">{patient.age}</strong></span>);
+            if (patient.weight) headerRow2Items.push(<span key="weight">W: <strong className="font-bold">{patient.weight}</strong>kg</span>);
+            if (patient.height) headerRow2Items.push(<span key="height">H: <strong className="font-bold">{patient.height}</strong>m</span>);
+            if (calculatedBmi) headerRow2Items.push(<span key="bmi">BMI: <strong className="font-bold">{calculatedBmi}</strong></span>);
+
+            return (
+                <div className="bg-[#2A3454] rounded-lg shadow-lg overflow-hidden">
+                    <button
+                        onClick={() => setIsOpen(!isOpen)}
+                        className={`w-full flex justify-between items-center p-4 text-left focus:outline-none transition-colors duration-200 ${patient.caution ? 'bg-red-500/30 hover:bg-red-500/40 focus:bg-red-500/40' : 'hover:bg-[#3B466F] focus:bg-[#3B466F]'}`}
+                        aria-expanded={isOpen}
+                        ref={accordionRef}
+                    >
+                        <div className="flex items-start min-w-0">
+                            <div className="flex flex-col items-center mr-3 flex-shrink-0 w-8">
+                                <span
+                                    className={`w-3 h-3 rounded-full ${isComplete ? 'bg-green-400' : 'bg-red-400'}`}
+                                    title={isComplete ? 'All fields complete' : 'Missing required data'}
+                                ></span>
+                                {patientNumber && (
+                                    <span className="text-xl font-bold text-[#94A3B8] mt-1">{patientNumber}</span>
+                                )}
+                                {patient.penicillinAllergy && (
+                                    <span className="mt-1 text-xl" role="img" aria-label="Penicillin Allergy">💊</span>
+                                )}
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                                <div className="font-semibold text-lg text-[#E2E8F0] truncate" title={patient.name}>
+                                    {patient.name} {patient.gender && `(${patient.gender})`}
+                                </div>
+                                <div className="text-sm text-[#94A3B8]">
+                                     {headerRow2Items.map((item, index) => (
+                                        <React.Fragment key={index}>
+                                            {item}
+                                            {index < headerRow2Items.length - 1 && ', '}
+                                        </React.Fragment>
+                                    ))}
+                                </div>
+                                 {patient.procedure && (
+                                    <div className="text-sm text-[#94A3B8] mt-1 whitespace-normal break-words" title={patient.procedure}>
+                                        {patient.procedure}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                        <ChevronDownIcon isOpen={isOpen} />
+                    </button>
+                    <div className={`grid transition-all duration-500 ease-in-out ${isOpen ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'}`}>
+                        <div className="overflow-hidden">
+                            <div className="p-4 border-t border-[#4A5580] space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="col-span-2 grid grid-cols-2 gap-4">
+                                       <CustomSelect
+                                            id={`extra-${patient.id}`}
+                                            label="Extra"
+                                            options={['None', 'Dental', 'Prone', 'Emergency']}
+                                            value={patient.extra}
+                                            onChange={(val) => handleSelectChange('extra', val)}
+                                        />
+                                        <CustomSelect
+                                            id={`billOnly100-${patient.id}`}
+                                            label="Bill only 100%"
+                                            options={['No', 'Yes']}
+                                            value={patient.billOnly100}
+                                            onChange={(val) => handleSelectChange('billOnly100', val)}
+                                        />
+                                    </div>
+                                    <InputField id={`procedureCodes-${patient.id}`} label="Procedure Codes" name="procedureCodes" value={patient.procedureCodes} onChange={handleInputChange} />
+                                    <InputField id={`icd10Codes-${patient.id}`} label="ICD 10 Codes" name="icd10Codes" value={patient.icd10Codes} onChange={handleInputChange} />
+                                    <InputField id={`weight-${patient.id}`} label="Weight (kg)" name="weight" value={patient.weight} onChange={handleInputChange} />
+                                    <InputField id={`height-${patient.id}`} label="Height (m)" name="height" value={patient.height} onChange={handleInputChange} />
+                                    <InputField id={`inTime-${patient.id}`} label="In Time" name="inTime" value={patient.inTime} onChange={handleInputChange} />
+                                    <InputField id={`outTime-${patient.id}`} label="Out Time" name="outTime" value={patient.outTime} onChange={handleInputChange} />
+                                    
+                                    <div className="col-span-2 flex justify-between items-center text-sm text-[#94A3B8]">
+                                        <div>Total time: <strong className="font-semibold text-[#E2E8F0]">{totalTime}</strong></div>
+                                        <div className="flex items-center space-x-2">
+                                            <AllergyCheckbox id={`caution-${patient.id}`} name="caution" checked={patient.caution} onChange={handleCheckboxChange} label="Caution" showIcon={false} />
+                                            <AllergyCheckbox id={`penicillin-${patient.id}`} name="penicillinAllergy" checked={patient.penicillinAllergy} onChange={handleCheckboxChange} label="Penicillin" />
+                                        </div>
+                                    </div>
+                                    
+                                    <div className="col-span-2 space-y-4 border-t border-[#4A5580] pt-4 mt-2">
+                                        <TextAreaField id={`notes-${patient.id}`} label="Patient Notes" name="notes" value={patient.notes} onChange={handleInputChange} />
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- From App.tsx ---
+        const App = () => {
+            const { useState, useRef, useCallback, useEffect } = React;
+            const LOCAL_STORAGE_KEY = 'patientDataManagerData';
+
+            const [allPatientData, setAllPatientData] = useState(() => {
+                try {
+                    const savedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+                    return savedData ? JSON.parse(savedData) : [];
+                } catch (error) {
+                    console.error("Failed to load data from local storage", error);
+                    return [];
+                }
+            });
+
+            const [isLoading, setIsLoading] = useState(false);
+            const [error, setError] = useState(null);
+            const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+            const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+            const [selectionsToDelete, setSelectionsToDelete] = useState({});
+            const [deferredPrompt, setDeferredPrompt] = useState(null);
+            const fileInputRef = useRef(null);
+
+            useEffect(() => {
+                if ('serviceWorker' in navigator) {
+                    const swCode = `
+                        const CACHE_NAME = 'pain-data-manager-cache-v1';
+                        const urlsToCache = ['./', './index.html', './cropped.png'];
+
+                        self.addEventListener('install', (event) => {
+                            event.waitUntil(
+                                caches.open(CACHE_NAME).then((cache) => {
+                                    return cache.addAll(urlsToCache);
+                                })
+                            );
+                        });
+
+                        self.addEventListener('fetch', (event) => {
+                            event.respondWith(
+                                caches.match(event.request).then((response) => {
+                                    return response || fetch(event.request);
+                                })
+                            );
+                        });
+                    `;
+                    const blob = new Blob([swCode], { type: 'application/javascript' });
+                    const swUrl = URL.createObjectURL(blob);
+
+                    navigator.serviceWorker.register(swUrl)
+                        .then((reg) => console.log('Service Worker registered.'))
+                        .catch((err) => console.log('Service Worker registration failed:', err));
+                }
+                
+                const handleBeforeInstallPrompt = (e) => {
+                    e.preventDefault();
+                    setDeferredPrompt(e);
+                };
+
+                window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+                return () => {
+                    window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+                };
+            }, []);
+            
+            useEffect(() => {
+                try {
+                    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(allPatientData));
+                } catch (error) {
+                    console.error("Failed to save data to local storage", error);
+                    setError("Could not save data. Your browser's storage might be full.");
+                }
+            }, [allPatientData]);
+            
+            const handleInstallClick = async () => {
+                if (!deferredPrompt) {
+                    return;
+                }
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    console.log('User accepted the install prompt');
+                }
+                setDeferredPrompt(null);
+            };
+
+            const handleFileImport = async (event) => {
+                const file = event.target.files?.[0];
+                if (!file) return;
+
+                setIsLoading(true);
+                setError(null);
+                try {
+                    const data = await parsePatientData(file);
+                    if (data.patients.length === 0) {
+                      setError("No patient data found in the file. Please check the format.");
+                    } else {
+                      setAllPatientData(prevData => [...prevData, data]);
+                    }
+                } catch (err) {
+                    console.error(err);
+                    setError('Failed to parse the file. Please ensure it is a valid XLSX file with the correct format.');
+                } finally {
+                    setIsLoading(false);
+                    if (fileInputRef.current) {
+                        fileInputRef.current.value = '';
+                    }
+                }
+            };
+
+            const performExport = (section) => {
+                const headerPart = section.sectionHeader.split(',')[0].trim();
+                const fileName = `${headerPart || 'pain_data'}.xlsx`;
+                try {
+                    exportPatientData(section, fileName);
+                } catch (err) {
+                    console.error(err);
+                    setError('Failed to export data.');
+                }
+            };
+
+            const handleExport = () => {
+                if (!allPatientData || allPatientData.length === 0) {
+                    alert('No patient data to export.');
+                    return;
+                }
+                
+                if (allPatientData.length === 1) {
+                    performExport(allPatientData[0]);
+                } else {
+                    setIsExportModalOpen(true);
+                }
+            };
+            
+            const handleSelectAndExport = (section) => {
+                performExport(section);
+                setIsExportModalOpen(false);
+            };
+
+            const handlePatientUpdate = useCallback((updatedPatient) => {
+                setAllPatientData(currentAllData =>
+                    currentAllData.map(section => ({
+                        ...section,
+                        patients: section.patients.map(p =>
+                            p.id === updatedPatient.id ? updatedPatient : p
+                        ),
+                    }))
+                );
+            }, []);
+
+            const handleClearAll = () => {
+                const initialSelections = {};
+                allPatientData.forEach((_, index) => {
+                    initialSelections[index] = true;
+                });
+                setSelectionsToDelete(initialSelections);
+                setIsConfirmModalOpen(true);
+            };
+
+            const performDeletion = () => {
+                setAllPatientData(currentData => 
+                    currentData.filter((_, index) => !selectionsToDelete[index])
+                );
+                setIsConfirmModalOpen(false);
+                setSelectionsToDelete({});
+            };
+            
+            const triggerFileInput = () => {
+                fileInputRef.current?.click();
+            };
+            
+            let cumulativePatientCount = 0;
+
+            return (
+                <div className="min-h-screen bg-[#212942] text-[#E2E8F0] font-sans flex flex-col">
+                    <div className="max-w-md mx-auto p-4 w-full flex flex-col flex-grow">
+                        <header className="py-6 text-center">
+                            <h1 className="text-4xl font-bold text-sky-400 tracking-wider">Narkose Data</h1>
+                        </header>
+
+                        <main className="mt-4 space-y-6 flex-grow">
+                            {isLoading && <p className="text-center text-lg text-sky-400">Processing file...</p>}
+                            {error && <p className="text-center text-lg text-red-400 bg-red-500/20 p-3 rounded-lg">{error}</p>}
+                            
+                            {!isLoading && allPatientData.length === 0 && !error && (
+                                <div className="text-center text-[#94A3B8] mt-16 p-6 bg-[#2A3454] rounded-lg">
+                                    <p className="text-xl">Welcome!</p>
+                                    <p>Click "Import" to load patient data.</p>
+                                </div>
+                            )}
+
+                            {allPatientData.map((patientData, index) => {
+                                if (patientData.patients.length === 0) {
+                                    return null;
+                                }
+                                
+                                const startingIndex = cumulativePatientCount;
+                                cumulativePatientCount += patientData.patients.length;
+
+                                return (
+                                    <div key={`${patientData.sectionHeader}-${index}`} className="bg-black/20 rounded-lg shadow-lg overflow-hidden border border-[#4A5580]">
+                                         <h2 className="p-4 text-xl font-bold text-center text-white bg-[#2A3454]">
+                                            {patientData.sectionHeader}
+                                         </h2>
+                                        <div className="p-4 space-y-3">
+                                            {patientData.patients.map((patient, patientIndex) => (
+                                                <PatientAccordion
+                                                    key={patient.id}
+                                                    patient={patient}
+                                                    patientNumber={startingIndex + patientIndex + 1}
+                                                    onUpdate={handlePatientUpdate}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </main>
+                        
+                        <footer className="mt-8 pt-6 border-t border-[#4A5580]">
+                            <div className="flex justify-center space-x-2 flex-wrap gap-2">
+                                <button
+                                    onClick={triggerFileInput}
+                                    className="flex items-center justify-center px-4 py-3 bg-sky-500 hover:bg-sky-600 text-white font-semibold rounded-lg shadow-md transition-transform transform hover:scale-105"
+                                    aria-label="Import XLSX file"
+                                >
+                                    <ImportIcon />
+                                    <span className="ml-2 hidden sm:inline">Import</span>
+                                </button>
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    onChange={handleFileImport}
+                                    className="hidden"
+                                    accept=".xlsx"
+                                />
+                                <button
+                                    onClick={handleExport}
+                                    disabled={allPatientData.length === 0}
+                                    className="flex items-center justify-center px-4 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-lg shadow-md transition-transform transform hover:scale-105 disabled:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                                    aria-label="Export data to XLSX file"
+                                >
+                                    <ExportIcon />
+                                    <span className="ml-2 hidden sm:inline">Export</span>
+                                </button>
+                                <button
+                                    onClick={handleClearAll}
+                                    disabled={allPatientData.length === 0}
+                                    className="flex items-center justify-center px-4 py-3 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg shadow-md transition-transform transform hover:scale-105 disabled:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                                    aria-label="Clear all data"
+                                >
+                                    <TrashIcon />
+                                    <span className="ml-2 hidden sm:inline">Clear All</span>
+                                </button>
+                                {deferredPrompt && (
+                                    <button
+                                        onClick={handleInstallClick}
+                                        className="flex items-center justify-center px-4 py-3 bg-indigo-500 hover:bg-indigo-600 text-white font-semibold rounded-lg shadow-md transition-transform transform hover:scale-105"
+                                        aria-label="Install application"
+                                    >
+                                        <InstallIcon />
+                                        <span className="ml-2 hidden sm:inline">Install App</span>
+                                    </button>
+                                )}
+                            </div>
+                        </footer>
+                    </div>
+                    
+                    {isExportModalOpen && (
+                        <ExportModal
+                            sections={allPatientData}
+                            onSelect={handleSelectAndExport}
+                            onClose={() => setIsExportModalOpen(false)}
+                        />
+                    )}
+                    {isConfirmModalOpen && (
+                        <ConfirmModal
+                            title="Confirm Deletion"
+                            sections={allPatientData}
+                            selections={selectionsToDelete}
+                            onSelectionChange={setSelectionsToDelete}
+                            onConfirm={performDeletion}
+                            onClose={() => setIsConfirmModalOpen(false)}
+                        />
+                    )}
+                </div>
+            );
+        };
+
+        // --- From index.tsx ---
+        const rootElement = document.getElementById('root');
+        if (!rootElement) {
+          throw new Error("Could not find root element to mount to");
+        }
+
+        const root = ReactDOM.createRoot(rootElement);
+        root.render(
+          <React.StrictMode>
+            <App />
+          </React.StrictMode>
+        );
+    </script>
+</body>
+</html>
